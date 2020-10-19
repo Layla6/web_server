@@ -119,3 +119,13 @@ void threadpool<T>::run(){
 }
 
 #endif
+
+/*
+https://blog.csdn.net/hsd2012/article/details/51207585?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param
+(1)当把线程函数封装在类中，this指针会作为默认的参数被传进函数中，
+从而和线程函数参数(void*)不能匹配，不能通过编译。
+(2)但是当我把类中的作为pthread_create的线程函数改为static之后，
+又遇到新的问题？即在该方法中访问其他非静态方法或者是变量时，没法访问，
+关于这个问题又怎么解决呢？答案：将this指针作为参数传递即可。
+
+*/
