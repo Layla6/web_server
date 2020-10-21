@@ -47,7 +47,6 @@ bool log::init(char *file_name, int close_log, int log_buf_size ,int max_lines, 
         
         strcpy(log_name,p+1);
         strncpy(dir_name,file_name,p-file_name+1);
-        cout<<"222"<<endl;
         cout<<dir_name<<"   "<<log_name<<endl;
         snprintf(log_full_name,255,"/%d_%02d_%02d_%s",my_tm.tm_year+1900,my_tm.tm_mon+1,my_tm.tm_mday,log_name);
         //snprintf(log_full_name,255,"%s%d_%02d_%02d_%s",dir_name,my_tm.tm_year+1900,my_tm.tm_mon+1,my_tm.tm_mday,log_name);

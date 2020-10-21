@@ -12,8 +12,6 @@ class log
 public:
     int m_close_log;
 
-    log();
-    ~log();
     static log* get_instance();
     //??? void *
     static void *flush_log_thread(void *);
@@ -24,6 +22,8 @@ public:
     void async_write_log();
 
 private:
+    log();
+    ~log();
     static log* instance;
     char *m_file_name;
     char dir_name[128];         //log path
