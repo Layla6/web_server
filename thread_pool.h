@@ -5,13 +5,15 @@
 #include<list>
 #include<exception>
 #include "locker.h"
+#include "./sql_pool/sql_pool.h"
 using namespace std;
 
 //implement thread pool, T is the request type
 template <typename T>
 class threadpool{
 public:
-    threadpool(int actor_model,int thread_number,int max_request);
+    //threadpool(int actor_model,sql_pool* connPool,int thread_number,int max_request);
+    threadpool(int actor_model,sql_pool* connPool,int thread_num,int max_request);
     ~threadpool();
     bool append(T* request,int state);
     bool append_p(T* request);
@@ -26,11 +28,13 @@ private:
     list<T*> m_workqueue;   //requests queue(threads take request from queue )
     sem m_queue_state;      // is there task in the queue
     locker m_queuelocker;   //protect queue
+    sql_pool* m_connPool;
 };
 
 template<typename T>
-threadpool<T>::threadpool(int actor_model,int thread_num,int max_request):m_actor_model(actor_model),m_thread_num(thread_num),m_max_requests(max_request){
-    if(thread_num<=0 || max_request<=0){
+threadpool<T>::threadpool(int actor_model,sql_pool* connPool,int thread_num,int max_request)
+:m_actor_model(actor_model),m_thread_num(thread_num), m_max_requests(max_request), m_threads(NULL),m_connPool(connPool){
+    if(m_thread_num<=0 || m_max_requests<=0){
         cout<<"error in :(thread_num<=0 || max_request<=0)"<<endl;
         throw std::exception();
     }
@@ -102,17 +106,34 @@ void threadpool<T>::run(){
         T* request=m_workqueue.front();
         m_workqueue.pop_front();
         m_queuelocker.unlock();
-        request->process();
+        //request->process();
+        if(!request)
+            continue;
         if(m_actor_model==1){  //reactor model
             if(request->m_state==0){        //read
-                request->read_once();
-                request->process();
+                if(request->read_once()){
+                    request->RW_done=1;
+                    connectionRAII mysqlcon(&request->mysql,m_connPool);
+                    request->process();
+                }
+                else{
+                    request->RW_done=1;
+                    request->RW_error=1;
+                }
+                
             }
             else{
-                request->write();           //write
+                if(request->write()){           //write
+                    request->RW_done=1;
+                }
+                else{
+                    request->RW_done=1;
+                    request->RW_error=1;
+                }
             }
         }
         else{                   //proactor model
+            connectionRAII mysqlcon(&request->mysql,m_connPool);
             request->process();
         }
     }

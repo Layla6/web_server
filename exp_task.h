@@ -12,6 +12,7 @@ public:
     void process();
     void read_once();
     void write();
+    void initmysql_result(sql_pool *connpool);
 public:
     int m_state;
 };
@@ -20,6 +21,9 @@ task::task(){
 }
 task::task(int sta){
     m_state=sta;
+}
+void initmysql_result(sql_pool *connpool){
+    
 }
 
 task::~task(){

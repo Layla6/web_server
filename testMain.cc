@@ -5,9 +5,12 @@
 #include <unistd.h>
 #include "./log/log.h"
 #include "./sql_pool/sql_pool.h"
+#include "web_server.h"
+#include "./config/config.h"
+//#include "http_task/http_conn.h"
 using namespace std;
 void test_thread_pool(){
-    threadpool<task> *m_threadpool=new threadpool<task>(1,8,1000);
+    threadpool<task> *m_threadpool=new threadpool<task>(1,NULL,8,1000);
     int max_user=4;
     task *users=new task[max_user];       //默认0read,1wirte
     users[1].m_state=1;
@@ -68,17 +71,51 @@ void test_sqlPool(sql_pool* m_connPool){
     //connectionRAII mysqlcon4(&my_db4,m_connPool);
     //cout<<my_db4<<endl;
 }
-int main(){
+int main(int argc,char* argv[]){
     //test_thread_pool();
     //test_log();
 
     // test sql pool  sql_connection_number is 4
+    /*
     log* m_log=log::get_instance();
     m_log->init((char*)"./serverLog",0,64,10);   
     sql_pool* m_connPool=sql_pool::getInstance();
     m_connPool->init("localhost", "root", "123","webser_db", 3306, 4,0);
     test_sqlPool(m_connPool);
+    */
 
+        //需要修改的数据库信息,登录名,密码,库名
+    string user = "root";
+    string passwd = "123";
+    string databasename = "webser_db";
+
+    //命令行解析
+    Config config;
+    config.parse_arg(argc, argv);
+
+    web_server<http_conn> server;
+
+    //初始化
+    server.init(config.PORT, user, passwd, databasename, config.LOGWrite, 
+                config.OPT_LINGER, config.TRIGMode,  config.sql_num,  config.thread_num, 
+                config.close_log, config.actor_model);
+    //日志
+    server.log_write();
+
+    //数据库
+    server.sql_connPool();
+
+    //线程池
+    server.thread_pool();
+
+    //触发模式
+    server.trig_mode();
+
+    //监听
+    server.eventListen();
+
+    //运行
+    server.eventLoop();
 
     return 0;
 }

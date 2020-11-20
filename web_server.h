@@ -1,16 +1,22 @@
 #ifndef WEB_SERVER_H
 #define WEB_SERVER_H
-#include<iostream>
-#include<sys/epoll.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <iostream>
+#include <sys/epoll.h>
+#include <cassert>
 #include "thread_pool.h"
 #include "./sql_pool/sql_pool.h"
 #include "exp_task.h"
 #include "./timer/lst_timer.h"
+#include "./http_task/http_conn.h"
 using namespace std;
 
 const int MAX_EVENT_NUMBER=10000;
 const int MAX_FD=65536;
-
+const int TIMESLOT = 5;   
+template<typename Task>
 class web_server
 {
 public:
@@ -37,24 +43,25 @@ public:
     void deal_write(int sockfd);
 public:
     int m_port;
-    char *m_root;
+    char *m_root;//
     int m_log_write;
     int m_close_log;
     int m_actor_model;
-    int m_pipefd[2];
-    int m_epollfd;
-    task* users;
+    int m_pipefd[2];//
+    int m_epollfd;//
+    //task* users;
+    Task* users;
 
-    sql_pool* m_connPool;
+    sql_pool* m_connPool;//
     string m_user;
     string m_password;
     string m_databaseName;
     int m_sql_num;
 
-    threadpool<task> *m_threadPool;
+    threadpool<task> *m_threadPool;//
     int m_thread_num;
 
-    epoll_event events[MAX_EVENT_NUMBER];
+    epoll_event events[MAX_EVENT_NUMBER];//
 
     int m_listenfd;
     int m_OPT_LINGER;
@@ -62,8 +69,9 @@ public:
     int m_LISTENTriMode;
     int m_CONNTriMode;
 
+    client_data* users_timer;
+    utils tools;
     
-
 };
 
 #endif
