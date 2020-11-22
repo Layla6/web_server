@@ -20,6 +20,8 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <map>
+#include <mysql/mysql.h>
+#include <fstream>
 #include "../locker.h"
 #include "../sql_pool/sql_pool.h"
 #include "../timer/lst_timer.h"
@@ -61,8 +63,8 @@ class http_conn
         LINE_OPEN
     };
 public:
-    http_conn();
-    ~http_conn();
+    http_conn(){}
+    ~http_conn(){}
     void init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMode,int close_log, string user, string passwd, string sqlname);
     void close_conn(bool real_close=true);
     void process();

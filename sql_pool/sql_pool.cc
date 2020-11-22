@@ -1,11 +1,12 @@
-#include<iostream>
-#include<mysql/mysql.h>
 #include "sql_pool.h"
 using namespace std;
 
 sql_pool::sql_pool(){
     m_CurConn=0;
     m_FreeConn=0;
+}
+sql_pool::~sql_pool(){
+    destroyPool();
 }
 
 sql_pool* sql_pool::connPool=new sql_pool();

@@ -1,14 +1,14 @@
 #include<iostream>
-#include "thread_pool.h"
-#include "exp_task.h"
-#include "locker.h"
-#include <unistd.h>
+//#include "thread_pool.h"
+//#include "exp_task.h"
 #include "./log/log.h"
-#include "./sql_pool/sql_pool.h"
-#include "web_server.h"
+//#include "./sql_pool/sql_pool.h"
 #include "./config/config.h"
-//#include "http_task/http_conn.h"
+#include "web_server.h"
 using namespace std;
+//g++ sql_pool.o lst_timer.o log.o  http_conn.o Utils.o web_server.o config.o testMain.o -o server
+// g++ testMain.o config.o web_server.o Utils.o http_conn.o sql_pool.o lst_timer.o log.o  -o server1
+/*
 void test_thread_pool(){
     threadpool<task> *m_threadpool=new threadpool<task>(1,NULL,8,1000);
     int max_user=4;
@@ -21,13 +21,14 @@ void test_thread_pool(){
     sleep(10);
     delete m_threadpool;
 }
+*/
 void test_log(){
     log* m_log=log::get_instance();
     //test synchronization
     //m_log->init("./serverLog",0,64,10);    
           
     //test asynchronization
-    m_log->init((char*)"./serverLog",0,64,10,10);     
+    m_log->init((char*)"./serverLog",0,64,10,0);     
     //为什么要强制转换：
     //"./serverLog"是一个不变常量，在c++中叫做string literal，type是const char *，
     //而p则是一个char指针。如果强行赋值会发生什么呢？没错，就是将右边的常量强制类型转换成一个指针，结果就是我们在修改一个const常量。
@@ -44,6 +45,7 @@ void test_log(){
             LOG_ERROR("%s","in the error!");
     }
 }
+/*
 void test_sqlPool(sql_pool* m_connPool){
     //***********NOTED*******************
     //函数MYSQL* sql_pool::getConnection()中：
@@ -71,6 +73,7 @@ void test_sqlPool(sql_pool* m_connPool){
     //connectionRAII mysqlcon4(&my_db4,m_connPool);
     //cout<<my_db4<<endl;
 }
+*/
 int main(int argc,char* argv[]){
     //test_thread_pool();
     //test_log();
@@ -84,7 +87,7 @@ int main(int argc,char* argv[]){
     test_sqlPool(m_connPool);
     */
 
-        //需要修改的数据库信息,登录名,密码,库名
+    //需要修改的数据库信息,登录名,密码,库名
     string user = "root";
     string passwd = "123";
     string databasename = "webser_db";
@@ -116,6 +119,29 @@ int main(int argc,char* argv[]){
 
     //运行
     server.eventLoop();
-
+    
     return 0;
 }
+
+/*
+CXX ?= g++
+DEBUG ?= 1
+ifeq ($(DEBUG), 1)
+    CXXFLAGS += -g
+else
+    CXXFLAGS += -O2
+
+endif
+server: ./log/log.cc  ./timer/lst_timer.cc ./config/config.cc ./sql_pool/sql_pool.cc  ./http_task/http_conn.cc Utils.cc  web_server.cc  testMain.cc 
+	$(CXX) -o server  $^ $(CXXFLAGS) -lpthread -lmysqlclient
+
+clean:
+	rm -r server
+
+server:config.o web_server.o testMain.o
+		g++ config.o web_server.o testMain.o -o server
+config.o:config.cc
+		g++ -c config.cc -o config.o
+web_server.o:web_server.cc
+		g++ -c web_server.cc -o web_server.o	
+*/

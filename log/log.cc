@@ -17,6 +17,8 @@ log* log::instance=new log();
 log* log::get_instance(){
     return log::instance;
 }
+//char* and 不变常量 const char* https://blog.csdn.net/digitalkee/article/details/107441452
+//将char* 改为 const char*
 bool log::init(char *file_name, int close_log, int log_buf_size ,int max_lines, int max_queue_size){
     if(max_queue_size>=1){          //if max_queue_size>=1,we choose async
         m_is_async=true;
@@ -39,7 +41,6 @@ bool log::init(char *file_name, int close_log, int log_buf_size ,int max_lines, 
     char log_full_name[256]={0};
 
     if(p==NULL){
-        cout<<"111"<<endl;
         //C 库函数 int snprintf(char *str, size_t size, const char *format, ...) 设将可变参数(...)按照 format 格式化成字符串，并将字符串复制到 str 中，size 为要写入的字符的最大数目，超过 size 会被截断。
         snprintf(log_full_name,255,"/%d_%02d_%02d_%s",my_tm.tm_year+1900,my_tm.tm_mon+1,my_tm.tm_mday,file_name);
     }
@@ -47,7 +48,6 @@ bool log::init(char *file_name, int close_log, int log_buf_size ,int max_lines, 
         
         strcpy(log_name,p+1);
         strncpy(dir_name,file_name,p-file_name+1);
-        cout<<dir_name<<"   "<<log_name<<endl;
         snprintf(log_full_name,255,"/%d_%02d_%02d_%s",my_tm.tm_year+1900,my_tm.tm_mon+1,my_tm.tm_mday,log_name);
         //snprintf(log_full_name,255,"%s%d_%02d_%02d_%s",dir_name,my_tm.tm_year+1900,my_tm.tm_mon+1,my_tm.tm_mday,log_name);
     }
@@ -55,11 +55,11 @@ bool log::init(char *file_name, int close_log, int log_buf_size ,int max_lines, 
     string temp=string(file_name)+string(log_full_name);
     path=temp.c_str();
     m_file_name=file_name;
-    cout<<path<<endl;
     m_today=my_tm.tm_mday;
     m_fp=fopen(path,"a");
-    if(m_fp==NULL)
+    if(m_fp==NULL){ 
         return false;
+    }
     return true;
 }
 

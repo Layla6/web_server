@@ -1,7 +1,6 @@
 #include "http_conn.h"
 
-#include <mysql/mysql.h>
-#include <fstream>
+
 
 int setnonblocking(int fd){
     int old_option = fcntl(fd, F_GETFL);
@@ -126,6 +125,14 @@ void http_conn::close_conn(bool real_close){
         m_sockfd=-1;
     }
 }
+
+void http_conn::unmap(){
+    if (m_file_adderss){
+        munmap(m_file_adderss, m_file_stat.st_size);
+        m_file_adderss = 0;
+    }
+}
+
 //循环读取客户数据，直到无数据可读或对方关闭连接
 //非阻塞ET工作模式下，需要一次性将数据读完
 bool http_conn::read_once(){
@@ -224,7 +231,7 @@ http_conn::LINE_STATUS http_conn::parse_line(){
     char temp;
     for(;m_checked_idx<m_read_idx;m_checked_idx++){
         temp=m_read_buf[m_checked_idx];
-        if(temp=='/r'){
+        if(temp=='\r'){
             if(m_checked_idx+1==m_read_idx)
                 return LINE_OPEN;
             else if(m_read_buf[m_checked_idx+1]=='\n'){

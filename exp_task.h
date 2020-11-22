@@ -16,28 +16,7 @@ public:
 public:
     int m_state;
 };
-task::task(){
-    m_state=0;
-}
-task::task(int sta){
-    m_state=sta;
-}
-void initmysql_result(sql_pool *connpool){
-    
-}
 
-task::~task(){
-}
-
-void task::process(){
-    cout<<"I am processing!"<<endl;
-}
-void task::read_once(){
-    cout<<"I am reading!"<<endl;
-}
-void task::write(){
-    cout<<"I am write!"<<endl;
-}
 
 
 

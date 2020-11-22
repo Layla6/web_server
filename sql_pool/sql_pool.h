@@ -50,6 +50,4 @@ private:
     MYSQL* conRAII;
     sql_pool* poolRAII;
 };
-
-
 #endif
