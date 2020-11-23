@@ -1,7 +1,7 @@
 #include "http_conn.h"
 
-
-
+#include <iostream>
+using namespace std;
 int setnonblocking(int fd){
     int old_option = fcntl(fd, F_GETFL);
     int new_option = old_option | O_NONBLOCK;
@@ -257,7 +257,7 @@ http_conn::LINE_STATUS http_conn::parse_line(){
 //char *rc=strpbrk(str,"come");//elocome.....  e是第一个匹配come中的单词
 //示例代码的运行结果为“elcome any ideas from readers，of course.”
 http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
-    m_url=strpbrk(text,"\t");
+    m_url=strpbrk(text," \t");  //**************** why note: " \t" instead of "\t"  
     if(!m_url)
         return BAD_REQUEST;
     
@@ -265,7 +265,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
     char* method=text;
     //忽略大小写,返回值 若参数s1和s2字符串相等则返回0。s1大于s2则返回大于0 的值，s1 小于s2 则返回小于0的值
     if(strcasecmp(method,"GET")==0){
-        m_method=POST;
+        m_method=GET;
     }
     else if(strcasecmp(method,"POST")==0){
         m_method=POST;
@@ -275,12 +275,12 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
         return BAD_REQUEST;
     }
     //strspn检索str1中第一个不在str2中出现的字符下表
-    m_url+=strspn(m_url,"\t");  //过滤tab符，找到m_url的开头
-    m_version=strpbrk(m_url,"\t"); //找到m_version（开头有tab）
+    m_url+=strspn(m_url," \t");  //过滤tab符，找到m_url的开头
+    m_version=strpbrk(m_url," \t"); //找到m_version（开头有tab）
     if(!m_version)
         return BAD_REQUEST;
     *m_version++='\0';
-    m_version+=strspn(m_version,"\t");//过滤tab符，找到m_version的开头
+    m_version+=strspn(m_version," \t");//过滤tab符，找到m_version的开头
     if(strcasecmp(m_version,"HTTP/1.1")!=0)
         return BAD_REQUEST;
     if(strncasecmp(m_url,"http://",7)==0){
@@ -310,19 +310,19 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text){
     }
     else if(strncasecmp(text,"Connection:",11)==0){
         text+=11;
-        text+=strspn(text,"\t");
+        text+=strspn(text," \t");
         if(strcasecmp(text,"keep-alive")==0){
             m_linger=true;
         }
     }
     else if(strncasecmp(text,"Content-length:",15)==0){
         text+=15;
-        text+=strspn(text,"\t");
+        text+=strspn(text," \t");
         m_content_length=atol(text);
     }
     else if(strncasecmp(text,"Host:",5)==0){
         text+=5;
-        text+=strspn(text,"\t");
+        text+=strspn(text," \t");
         m_host=text;
     }
     else{
@@ -348,6 +348,7 @@ http_conn::HTTP_CODE http_conn::parse_content(char *text){
 http_conn::HTTP_CODE http_conn::do_request(){
     strcpy(m_real_file,doc_root);
     int len=strlen(doc_root);
+    LOG_INFO("************** m_url %s  ************",m_url);
     //strrchr 函数在字符串 s 中是从后到前（或者称为从右向左）查找字符 c，找到字符 c 第一次出现的位置就返回，返回值指向这个位置。
     const char* p=strrchr(m_url,'/');
 
@@ -365,7 +366,7 @@ http_conn::HTTP_CODE http_conn::do_request(){
         //user=123&password=123
         char name[100],password[100];
         int i;
-        for(int i=5;m_string[i]!='&';++i)
+        for(i=5;m_string[i]!='&';++i)
             name[i-5]=m_string[i];
         name[i-5]='\0';
         
@@ -374,7 +375,11 @@ http_conn::HTTP_CODE http_conn::do_request(){
         for(i=i+10;m_string[i]!='\0';++i,++j)
             password[j]=m_string[i];
         password[j]='\0';
-
+        cout<<name<<"  "<<password<<endl;
+        for(auto it=users.begin();it!=users.end();it++){
+            cout<<it->first<<"  "<<it->second<<endl;
+        }
+        
         if(*(p+1)=='3'){
             char* sql_insert=(char*)malloc(sizeof(char)*200);
             strcpy(sql_insert,"INSERT INTO user(username,passwd) VALUES(");
@@ -382,7 +387,8 @@ http_conn::HTTP_CODE http_conn::do_request(){
             strcat(sql_insert,name);
             strcat(sql_insert,"','");
             strcat(sql_insert,password);
-            strcat(sql_insert,")");
+            strcat(sql_insert,"')");
+            cout<<sql_insert<<endl;
             if(users.find(name)==users.end()){
                 m_lock.lock();
                 int res=mysql_query(mysql,sql_insert);
@@ -438,6 +444,7 @@ http_conn::HTTP_CODE http_conn::do_request(){
     else
         //否则发送url实际请求的文件
         strncpy(m_real_file + len, m_url, FILENAME_LEN - len - 1);
+        
     if(stat(m_real_file,&m_file_stat)<0)
         return NO_REQUEST;
     if(!(m_file_stat.st_mode&S_IROTH))
@@ -463,14 +470,17 @@ http_conn::HTTP_CODE http_conn::process_read(){
         switch(m_check_state){
             case CHECK_STATE_REQUESTLINE:{
                 ret=parse_request_line(text);
+                LOG_INFO("******************** m_url %s  m_version %s   %d",m_url,m_version,ret);
                 if(ret==BAD_REQUEST)
                     return BAD_REQUEST;
                 break;
             }
             case CHECK_STATE_HEADER:{
                 ret=parse_headers(text);
-                if (ret == BAD_REQUEST)
+                LOG_INFO("******************** m_url %s  m_version %s   %d",m_url,m_version,ret);
+                if (ret == BAD_REQUEST){
                     return BAD_REQUEST;
+                }
                 else if (ret == GET_REQUEST){
                     return do_request();
                 }
@@ -478,6 +488,7 @@ http_conn::HTTP_CODE http_conn::process_read(){
             }
             case CHECK_STATE_CONTENT:{
                 ret = parse_content(text);
+                LOG_INFO("******************** m_url %s  m_version %s   %d",m_url,m_version,ret);
                 if (ret == GET_REQUEST)
                     return do_request();
                 line_status = LINE_OPEN;
@@ -501,7 +512,7 @@ bool http_conn::add_response(const char *format, ...){
     }
     m_write_idx+=len;
     va_end(arg_list);
-    LOG_INFO("request:%s",m_write_buf);
+    LOG_INFO("request: \n %s",m_write_buf);
     return true;
 }
 bool http_conn::add_status_line(int status, const char *title){
@@ -582,12 +593,15 @@ bool http_conn::process_write(HTTP_CODE ret){
 //此时 web_server.deal_read/write（proactor）或者thread_pool(reactor).run已经将需要读/写的数据准备好了
 //工作线程run在数据准备后,直接调用http_conn::process(),处理客户任务
 void http_conn::process(){
+    cout<<"m_read_buf: "<<m_read_buf<<endl;
     HTTP_CODE read_ret=process_read();
+    LOG_INFO("********** %d *************",read_ret);
     if(read_ret==NO_REQUEST){
         //当未读取完整的数据时(ex,1.process_read中parse_line返回LINE_OPEN)，2.LINE_OPEN)
         modfd(m_epollfd,m_sockfd,EPOLLIN,m_TrigMode);
         return ;
     }
+    
     bool write_ret=process_write(read_ret);
     if(!write_ret){
         close_conn();
