@@ -70,6 +70,7 @@ public:
     void process();
     bool read_once();
     bool write();
+    bool write_errBigFile();
     sockaddr_in *get_address(){
         return &m_address;
     }
