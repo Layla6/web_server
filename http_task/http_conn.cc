@@ -335,7 +335,6 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text){
 http_conn::HTTP_CODE http_conn::parse_content(char *text){
     //？？？？？？？？？？？m_start_line
     //已解决：parse_headers时 修改m_check_state=CHECK_STATE_CONTENT && line_status==LINE_OK  因此while只走了第一个判断，因此不会调用parse_line()，也就不会修改m_check_idx
-
     //判断buffer中是否读取了消息体
     if(m_read_idx>=(m_content_length+m_checked_idx)){
         text[m_content_length]='\0';
