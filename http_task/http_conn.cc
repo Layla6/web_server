@@ -172,10 +172,10 @@ bool http_conn::read_once(){
 }
 //① writev以顺序iov[0]、iov[1]至iov[iovcnt-1]从各缓冲区中聚集输出数据到fd
 //② readv则将从fd读入的数据按同样的顺序散布到各缓冲区中，readv总是先填满一个缓冲区，然后再填下一个
-//EAGAIN(try again,nonblock,ex,write:the buffer is full.read:the buffer is empty,please try again(later)) https://www.cnblogs.com/pigerhan/archive/2013/02/27/2935403.html
+//EAGAIN(try again,nonblock,ex,write:the buffer/fd is full.read:the buffer is empty,please try again(later)) https://www.cnblogs.com/pigerhan/archive/2013/02/27/2935403.html
 //https://www.cnblogs.com/pigerhan/archive/2013/02/27/2935403.html
 //https://mp.weixin.qq.com/s?__biz=MzAxNzU2MzcwMw==&mid=2649274431&idx=1&sn=2dd28c92f5d9704a57c001a3d2630b69&chksm=83ffb167b48838715810b27b8f8b9a576023ee5c08a8e5d91df5baf396732de51268d1bf2a4e&token=1686112912&lang=zh_CN#rd
-bool http_conn::write_errBigFile(){
+bool http_conn::write(){
     int temp=0;
     //如果需要发送的数据大小为0，则等待新数据到来
     if(bytes_to_send==0){
@@ -198,6 +198,7 @@ bool http_conn::write_errBigFile(){
         bytes_have_send+=temp;
         bytes_to_send-=temp;
         if(bytes_have_send>=m_iv[0].iov_len){
+            //发送当前文件
             m_iv[0].iov_len=0;
             //???为什么减去m_write_idx
             //because byte_to_send=m_write_idx+m_file_stat.st.size(see func:process_write())
@@ -205,10 +206,12 @@ bool http_conn::write_errBigFile(){
             m_iv[1].iov_len=bytes_to_send;
         }
         else{
+            //发送当前url响应报文
             //????m_file_adderss and m_write_buf
             m_iv[0].iov_base=m_write_buf+bytes_have_send;
             m_iv[0].iov_len=m_iv[0].iov_len-bytes_have_send;
         }
+
         if(bytes_to_send<=0){
             unmap();
             modfd(m_epollfd,m_sockfd,EPOLLIN,m_TrigMode);
@@ -225,8 +228,10 @@ bool http_conn::write_errBigFile(){
         //注意这里没有返回，如果数据没有写完，则将一直处于while(1)循环中
     }
 }
+
+//C/C++大文件/数据网络传输方法总结 https://blog.csdn.net/jmppok/article/details/18360595
 //https://mp.weixin.qq.com/s?__biz=MzAxNzU2MzcwMw==&mid=2649274431&idx=1&sn=2dd28c92f5d9704a57c001a3d2630b69&chksm=83ffb167b48838715810b27b8f8b9a576023ee5c08a8e5d91df5baf396732de51268d1bf2a4e&token=1686112912&lang=zh_CN#rd
-bool http_conn::write(){
+bool http_conn::write_errBigFile(){
     int temp=0;
     //如果需要发送的数据大小为0，则等待新数据到来
     int new_add=0;
@@ -237,22 +242,23 @@ bool http_conn::write(){
     }
 
     while(1){
+        //https://blog.csdn.net/zhangge3663/article/details/84584335
         temp=writev(m_sockfd,m_iv,m_iv_count);
         if(temp>=0){
             bytes_have_send+=temp;
-            new_add=bytes_have_send-m_write_idx;
+            //new_add=bytes_have_send-m_write_idx;
+            bytes_to_send-=temp;
         }
         else{
             if(errno==EAGAIN){
                 if(bytes_have_send>=m_iv[0].iov_len){
                     m_iv[0].iov_len=0;
-                    //???为什么减去m_write_idx
-                    //because byte_to_send=m_write_idx+m_file_stat.st.size(see func:process_write())
-                    m_iv[1].iov_base=m_file_adderss+new_add;
+                    //m_iv[1].iov_base=m_file_adderss+new_add;
+                    m_iv[1].iov_base=m_file_adderss+bytes_have_send-m_write_idx;
+                    //m_iv[1].iov_len=bytes_to_send;
                     m_iv[1].iov_len=bytes_to_send;
                 }
                 else{
-                    //????m_file_adderss and m_write_buf
                     m_iv[0].iov_base=m_write_buf+bytes_have_send;
                     m_iv[0].iov_len=m_iv[0].iov_len-bytes_have_send;
                 }
@@ -263,7 +269,7 @@ bool http_conn::write(){
             return false;
         }
 
-        bytes_to_send-=temp;
+        //bytes_to_send-=temp;
         
         if(bytes_to_send<=0){
             unmap();
@@ -315,6 +321,7 @@ http_conn::LINE_STATUS http_conn::parse_line(){
 //示例代码的运行结果为“elcome any ideas from readers，of course.”
 http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
     m_url=strpbrk(text," \t");  //**************** why note: " \t" instead of "\t"  
+    //m_url=strpbrk(text," ");  //reason: space is also complete the same function.
     if(!m_url)
         return BAD_REQUEST;
     
@@ -333,10 +340,12 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
     }
     //strspn检索str1中第一个不在str2中出现的字符下表
     m_url+=strspn(m_url," \t");  //过滤tab符，找到m_url的开头
+    //m_url+=strspn(m_url," "); 
     m_version=strpbrk(m_url," \t"); //找到m_version（开头有tab）
     if(!m_version)
         return BAD_REQUEST;
     *m_version++='\0';
+    //cout<<"m_url:***************"<<m_url<<"   "<<endl;
     m_version+=strspn(m_version," \t");//过滤tab符，找到m_version的开头
     if(strcasecmp(m_version,"HTTP/1.1")!=0)
         return BAD_REQUEST;

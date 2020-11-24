@@ -375,6 +375,7 @@ void web_server<Task>::deal_write(int sockfd){
             adjust_timer(timer);
         m_threadPool->append(users+sockfd,1);
         while(true){
+            //主线程轮询读写是否完成
             if(1==users[sockfd].RW_done){
                 if(1==users[sockfd].RW_error){
                     deal_timer(timer,sockfd);
