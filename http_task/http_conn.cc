@@ -175,6 +175,10 @@ bool http_conn::read_once(){
 //EAGAIN(try again,nonblock,ex,write:the buffer/fd is full.read:the buffer is empty,please try again(later)) https://www.cnblogs.com/pigerhan/archive/2013/02/27/2935403.html
 //https://www.cnblogs.com/pigerhan/archive/2013/02/27/2935403.html
 //https://mp.weixin.qq.com/s?__biz=MzAxNzU2MzcwMw==&mid=2649274431&idx=1&sn=2dd28c92f5d9704a57c001a3d2630b69&chksm=83ffb167b48838715810b27b8f8b9a576023ee5c08a8e5d91df5baf396732de51268d1bf2a4e&token=1686112912&lang=zh_CN#rd
+
+//write v.s. writev:
+//write:对于非阻塞socket而言，对于非阻塞socket而言，write会在buf不可写时返回的EAGAIN，那么在下一次write时，便可通过之前返回的值重新确定基址和长度。
+//writev: 因为参数传入的是iovec数组，计量单位是iovcnt，而不是字节数，用户依旧需要通过遍历iovec来计算新的基址，另外写入数据的“结束点”可能位于一个iovec的中间某个位置，因此需要调整临界iovec的io_base和io_len。
 bool http_conn::write(){
     int temp=0;
     //如果需要发送的数据大小为0，则等待新数据到来
